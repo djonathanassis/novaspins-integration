@@ -1,0 +1,43 @@
+meta {
+  name: Rollback
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/providers/novaspins/callback
+  body: text
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-Signature:
+}
+
+body:text {
+  {"type":"rollback","player_external_id":"{{playerExternalId}}","provider_transaction_id":"rb-0001","original_transaction_id":"bet-0001","amount":10.00,"currency":"BRL"}
+}
+
+script:pre-request {
+  const CryptoJS = require('crypto-js');
+  const getVar = (name) =>
+    (typeof bru.getEnvVar === 'function' && bru.getEnvVar(name)) ||
+    (typeof bru.getVar === 'function' && bru.getVar(name)) ||
+    '';
+  const payload = {
+    type: 'rollback',
+    player_external_id: getVar('playerExternalId') || 'player-001',
+    provider_transaction_id: 'rb-0001',
+    original_transaction_id: 'bet-0001',
+    amount: 10.00,
+    currency: 'BRL',
+  };
+  const body = JSON.stringify(payload);
+  req.setBody(body);
+  const secret = getVar('hmacSecret') || 'please-change-me-in-production';
+  console.log('HMAC body:', body);
+  console.log('HMAC secret resolved:', !!getVar('hmacSecret'));
+  const sig = CryptoJS.HmacSHA256(body, secret).toString(CryptoJS.enc.Hex);
+  req.setHeader('X-Signature', sig);
+}

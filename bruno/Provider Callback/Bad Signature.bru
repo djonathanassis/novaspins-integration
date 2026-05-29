@@ -1,0 +1,20 @@
+meta {
+  name: Bad Signature
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/providers/novaspins/callback
+  body: text
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-Signature: deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef
+}
+
+body:text {
+  {"type":"bet","player_external_id":"{{playerExternalId}}","provider_transaction_id":"bet-bad-sig","amount":1.00,"currency":"BRL"}
+}

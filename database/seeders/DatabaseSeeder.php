@@ -1,0 +1,46 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Database\Seeders;
+
+use App\Models\Player;
+use App\Models\Transaction;
+use App\Models\Wallet;
+use Illuminate\Database\Seeder;
+
+class DatabaseSeeder extends Seeder
+{
+    public function run(): void
+    {
+        $player = Player::firstOrCreate(
+            ['external_id' => 'player-001'],
+            ['name' => 'Joao da Silva']
+        );
+
+        $wallet = Wallet::firstOrCreate(
+            ['player_id' => $player->id],
+            ['balance' => 1000.00, 'currency' => 'BRL']
+        );
+
+        $history = [
+            ['type' => Transaction::TYPE_BET, 'amount' => 25.00],
+            ['type' => Transaction::TYPE_WIN, 'amount' => 60.00],
+            ['type' => Transaction::TYPE_BET, 'amount' => 10.50],
+            ['type' => Transaction::TYPE_BET, 'amount' => 5.25],
+            ['type' => Transaction::TYPE_WIN, 'amount' => 12.75],
+        ];
+
+        foreach ($history as $i => $entry) {
+            Transaction::firstOrCreate(
+                ['provider_transaction_id' => 'seed-tx-' . str_pad((string) ($i + 1), 4, '0', STR_PAD_LEFT)],
+                [
+                    'wallet_id' => $wallet->id,
+                    'type' => $entry['type'],
+                    'amount' => $entry['amount'],
+                    'status' => Transaction::STATUS_COMPLETED,
+                ]
+            );
+        }
+    }
+}
