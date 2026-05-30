@@ -92,6 +92,44 @@ class ProviderCallbackTest extends TestCase
         $this->assertEquals(Transaction::STATUS_REVERSED, $bet->refresh()->status);
     }
 
+    public function test_rollback_callback_is_idempotent_for_same_original_transaction(): void
+    {
+        $player = $this->makePlayerWithBalance(500.00);
+
+        $bet = Transaction::create([
+            'wallet_id' => $player->wallet->id,
+            'provider_transaction_id' => 'tx-bet-original-idempotent',
+            'type' => Transaction::TYPE_BET,
+            'amount' => 100.00,
+            'status' => Transaction::STATUS_COMPLETED,
+        ]);
+        $player->wallet->decrement('balance', 100.00);
+
+        $payloadOne = $this->payload([
+            'type' => 'rollback',
+            'player_external_id' => $player->external_id,
+            'provider_transaction_id' => 'tx-rollback-idempotent-1',
+            'original_transaction_id' => $bet->provider_transaction_id,
+            'amount' => 100.00,
+            'currency' => 'BRL',
+        ]);
+
+        $payloadTwo = $this->payload([
+            'type' => 'rollback',
+            'player_external_id' => $player->external_id,
+            'provider_transaction_id' => 'tx-rollback-idempotent-2',
+            'original_transaction_id' => $bet->provider_transaction_id,
+            'amount' => 100.00,
+            'currency' => 'BRL',
+        ]);
+
+        $this->postCallback($payloadOne)->assertOk();
+        $this->postCallback($payloadTwo)->assertOk();
+
+        $this->assertEquals(500.00, $player->wallet->refresh()->balance);
+        $this->assertEquals(1, Transaction::where('type', Transaction::TYPE_ROLLBACK)->count());
+    }
+
     public function test_callback_with_invalid_signature_is_rejected(): void
     {
         $player = $this->makePlayerWithBalance(500.00);

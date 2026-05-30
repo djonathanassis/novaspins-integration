@@ -140,4 +140,51 @@ Adicionada guarda idempotente em `handleBet()` para retornar a transação exist
 
 ### Commit
 fix(callback): make bet callback idempotent
+hash: 2e5d1c5
+
+## Bug 4: rollback duplicado no mesmo original credita novamente
+
+### Severidade
+P0 crítico
+Justificativa: múltiplos callbacks de rollback para o mesmo original causavam crédito duplicado.
+
+### Causa raiz
+`handleRollback()` não tinha guarda idempotente por `original_transaction_id` já revertido e sempre executava `reverse()`.
+
+### Arquivo(s) e linha(s)
+- `app/Http/Controllers/Api/ProviderCallbackController.php:L109-L120`
+- `tests/Feature/ProviderCallbackTest.php:L96-L130`
+
+### Ticket(s)
+#4501
+
+### Impacto
+Estorno em duplicidade para uma única transação original, inflando saldo do player.
+
+### Como reproduzir
+Pré-condição: existir bet original válido.
+1. Enviar rollback para o original.
+2. Enviar segundo rollback com outro `provider_transaction_id` para o mesmo original.
+   Esperado: segunda chamada idempotente sem nova mutação.
+   Obtido  : novo crédito aplicado.
+
+### Evidência antes do fix
+- `FAILED ... Failed asserting that 600.0 matches expected 500.0` em `test_rollback_callback_is_idempotent_for_same_original_transaction`.
+
+### Fix aplicado
+Adicionada guarda por rollback existente (`type=rollback` + `original_transaction_id`) retornando resposta idempotente antes de chamar `reverse()`.
+
+### Evidência depois do fix
+- QA manual: `HTTP1=200 HTTP2=200 | before=1023 mid=1036 after=1036`.
+- Ambas respostas retornaram o mesmo `transaction_id` (`16`).
+
+### Testes
+- `test_rollback_callback_is_idempotent_for_same_original_transaction` — FAILED antes / PASSED depois
+- Suíte completa: 9 passed
+
+### Trade-offs
+- Alternativa descartada: bloquear por `provider_transaction_id` somente; descartada porque o incidente ocorre com IDs diferentes para o mesmo original.
+
+### Commit
+fix(callback): enforce rollback idempotency by original transaction
 hash: [gerado]

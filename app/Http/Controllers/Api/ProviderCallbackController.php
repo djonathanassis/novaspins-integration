@@ -118,6 +118,18 @@ class ProviderCallbackController
 
         $wallet = Wallet::findOrFail($original->wallet_id);
 
+        $existingRollback = Transaction::where('type', Transaction::TYPE_ROLLBACK)
+            ->where('original_transaction_id', $original->id)
+            ->first();
+
+        if ($existingRollback !== null) {
+            return response()->json([
+                'status' => 'ok',
+                'transaction_id' => $existingRollback->id,
+                'balance' => $wallet->balance,
+            ]);
+        }
+
         try {
             $this->walletService->reverse($wallet, $original);
         } catch (RuntimeException $e) {
