@@ -92,6 +92,45 @@ class ProviderCallbackTest extends TestCase
         $this->assertEquals(Transaction::STATUS_REVERSED, $bet->refresh()->status);
     }
 
+    public function test_rollback_without_original_transaction_id_returns_422(): void
+    {
+        $player = $this->makePlayerWithBalance(500.00);
+        $balanceBefore = $player->wallet->balance;
+
+        $rawPayload = [
+            'type' => 'rollback',
+            'player_external_id' => $player->external_id,
+            'provider_transaction_id' => 'tx-rollback-without-original',
+            'amount' => 12.00,
+            'currency' => 'BRL',
+        ];
+        $payload = $this->payload($rawPayload);
+
+        $response = $this->call(
+            'POST',
+            '/api/providers/novaspins/callback',
+            [],
+            [],
+            [],
+            [
+                'HTTP_X-Signature' => $payload['signature'],
+                'CONTENT_TYPE' => 'application/json',
+                'HTTP_ACCEPT' => 'application/json',
+            ],
+            $payload['body'],
+        );
+
+        $response->assertStatus(422);
+        $this->assertEquals($balanceBefore, $player->wallet->refresh()->balance);
+        $this->assertDatabaseMissing('transactions', [
+            'provider_transaction_id' => 'tx-rollback-without-original',
+        ]);
+        $this->assertDatabaseMissing('transactions', [
+            'type' => Transaction::TYPE_ROLLBACK,
+            'amount' => '12.00',
+        ]);
+    }
+
     public function test_rollback_callback_is_idempotent_for_same_original_transaction(): void
     {
         $player = $this->makePlayerWithBalance(500.00);

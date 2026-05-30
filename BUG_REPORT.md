@@ -291,4 +291,57 @@ Pré-condição: configuração original com tipos flutuantes.
 
 ### Commit
 fix(money): migrate monetary fields to decimal precision
+hash: a224019
+
+## Bug 7: rollback sem original_transaction_id retorna 500
+
+### Severidade
+P1 alto
+Justificativa: payload inválido de rollback gerava erro interno 500 e acionava retries desnecessários.
+
+### Causa raiz
+`CallbackRequest` permitia `original_transaction_id` nullable, enquanto `handleRollback()` acessava a chave diretamente.
+
+### Arquivo(s) e linha(s)
+- `app/Http/Requests/CallbackRequest.php:L26-L36`
+- `tests/Feature/ProviderCallbackTest.php:L92-L123`
+
+### Ticket(s)
+sem ticket
+
+### Impacto
+Erro interno em vez de validação previsível, com ruído operacional e risco de retry em cascata do provider.
+
+### Como reproduzir
+Pré-condição: callback endpoint ativo.
+1. Enviar payload `rollback` sem `original_transaction_id`.
+2. Verificar status e corpo.
+   Esperado: `422` com erro de validação.
+   Obtido  : `500` por acesso de chave inexistente.
+
+### Evidência antes do fix
+- `FAILED ... Expected response status code [422] but received 500`.
+- Exceção: `Undefined array key "original_transaction_id"`.
+
+### Fix aplicado
+- Regra `required_if:type,rollback` em `CallbackRequest` para `original_transaction_id`.
+- Regra monetária de `amount` endurecida para `required|numeric|decimal:0,2|gte:0.01`.
+- `failedValidation()` customizado para resposta JSON `422` consistente em API callback.
+
+### Evidência depois do fix
+- Teste: `test_rollback_without_original_transaction_id_returns_422` PASSED.
+- QA manual: `HTTP=422 | before=1036.10 | after=1036.10`.
+- Resposta: `{"message":"The given data was invalid.","errors":{"original_transaction_id":[...]}}`.
+- Sem mutação financeira: nenhuma transação criada para `provider_transaction_id=tx-rollback-without-original`.
+- Amount imutável no erro: nenhuma transação rollback persistida com `amount=12.00`.
+
+### Testes
+- `test_rollback_without_original_transaction_id_returns_422` — FAILED antes / PASSED depois
+- Suíte completa: 14 passed
+
+### Trade-offs
+- Alternativa descartada: tratar ausência apenas no controller; descartada por espalhar regra de validação de contrato HTTP fora da camada de request.
+
+### Commit
+fix(validation): require original transaction id on rollback
 hash: [gerado]
