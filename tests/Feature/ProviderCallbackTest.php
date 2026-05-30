@@ -119,6 +119,38 @@ class ProviderCallbackTest extends TestCase
         $response->assertStatus(401);
     }
 
+    public function test_replay_callback_without_signature_is_rejected_and_does_not_mutate_balance(): void
+    {
+        $player = $this->makePlayerWithBalance(500.00);
+
+        $body = json_encode([
+            'type' => 'win',
+            'player_external_id' => $player->external_id,
+            'provider_transaction_id' => 'tx-replay-unsigned',
+            'amount' => 10.00,
+            'currency' => 'BRL',
+        ], JSON_THROW_ON_ERROR);
+
+        $response = $this->call(
+            'POST',
+            '/api/providers/novaspins/callback/replay',
+            [],
+            [],
+            [],
+            [
+                'CONTENT_TYPE' => 'application/json',
+            ],
+            $body,
+        );
+
+        $response->assertStatus(401);
+
+        $this->assertEquals(500.00, $player->wallet->refresh()->balance);
+        $this->assertDatabaseMissing('transactions', [
+            'provider_transaction_id' => 'tx-replay-unsigned',
+        ]);
+    }
+
     public function test_win_callback_is_idempotent_on_same_provider_transaction_id(): void
     {
         $player = $this->makePlayerWithBalance(500.00);

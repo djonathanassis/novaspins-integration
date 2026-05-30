@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Http\Middleware\LogCallbacks;
 use App\Http\Middleware\VerifyProviderSignature;
 use Illuminate\Foundation\Application;
@@ -19,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->appendToGroup('provider.callback.replay', [
+            VerifyProviderSignature::class,
             LogCallbacks::class,
         ]);
     })
