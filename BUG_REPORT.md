@@ -187,4 +187,52 @@ Adicionada guarda por rollback existente (`type=rollback` + `original_transactio
 
 ### Commit
 fix(callback): enforce rollback idempotency by original transaction
+hash: ab1b179
+
+## Bug 5: comparação HMAC com `===` em vez de `hash_equals`
+
+### Severidade
+P1 alto
+Justificativa: comparação de assinatura fora de constant-time aumenta superfície para timing attack.
+
+### Causa raiz
+`HmacValidator::isValid()` comparava assinatura esperada e recebida com `===`.
+
+### Arquivo(s) e linha(s)
+- `app/Services/HmacValidator.php:L21`
+- `tests/Feature/Unit/HmacValidatorTest.php:L12-L27`
+
+### Ticket(s)
+#4521
+
+### Impacto
+Hardening de segurança incompleto na validação de callbacks financeiros.
+
+### Como reproduzir
+Pré-condição: código atual da validação HMAC.
+1. Executar teste de segurança do validator.
+2. Verificar presença de API de comparação constant-time.
+   Esperado: uso de `hash_equals`.
+   Obtido  : uso de `===`.
+
+### Evidência antes do fix
+- `FAILED ... To contain: hash_equals` em `test_hmac_validator_uses_hash_equals_for_signature_comparison`.
+
+### Fix aplicado
+Substituída comparação `===` por `hash_equals($expected, $signature)` no `HmacValidator`.
+
+### Evidência depois do fix
+- `HmacValidatorTest`: 2 passed.
+- QA manual: `HTTP=401 | before=1036 | after=1036` para assinatura inválida.
+
+### Testes
+- `test_hmac_validator_uses_hash_equals_for_signature_comparison` — FAILED antes / PASSED depois
+- `test_hmac_validator_accepts_valid_signature` — PASSED
+- Suíte completa: 11 passed
+
+### Trade-offs
+- Alternativa descartada: manter `===` por simplicidade; descartada por risco de timing side-channel.
+
+### Commit
+fix(security): use hash_equals in hmac validation
 hash: [gerado]

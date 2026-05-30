@@ -18,6 +18,6 @@ class HmacValidator
 
         $expected = hash_hmac('sha256', $payload, $this->secret);
 
-        return $expected === $signature;
+        return hash_equals($expected, $signature);
     }
 }
