@@ -37,6 +37,18 @@ class ProviderCallbackController
         $player = Player::where('external_id', $data['player_external_id'])->firstOrFail();
         $wallet = $player->wallet ?? $this->createWallet($player, $data['currency'] ?? null);
 
+        $existing = Transaction::where('provider_transaction_id', $data['provider_transaction_id'])
+            ->where('type', Transaction::TYPE_BET)
+            ->first();
+
+        if ($existing !== null) {
+            return response()->json([
+                'status' => 'ok',
+                'transaction_id' => $existing->id,
+                'balance' => $wallet->balance,
+            ]);
+        }
+
         try {
             $this->walletService->debit($wallet, (string) $data['amount']);
         } catch (RuntimeException $e) {

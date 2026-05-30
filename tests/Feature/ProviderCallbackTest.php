@@ -190,6 +190,25 @@ class ProviderCallbackTest extends TestCase
         $this->assertEquals(530.00, $player->wallet->refresh()->balance);
     }
 
+    public function test_bet_callback_is_idempotent_on_same_provider_transaction_id(): void
+    {
+        $player = $this->makePlayerWithBalance(500.00);
+
+        $payload = $this->payload([
+            'type' => 'bet',
+            'player_external_id' => $player->external_id,
+            'provider_transaction_id' => 'tx-bet-dupe',
+            'amount' => 30.00,
+            'currency' => 'BRL',
+        ]);
+
+        $this->postCallback($payload)->assertOk();
+        $this->postCallback($payload)->assertOk();
+
+        $this->assertEquals(470.00, $player->wallet->refresh()->balance);
+        $this->assertDatabaseCount('transactions', 1);
+    }
+
     private function makePlayerWithBalance(float $balance): Player
     {
         $player = Player::create([

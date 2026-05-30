@@ -93,4 +93,51 @@ Pré-condição: player com wallet ativa.
 
 ### Commit
 fix(wallet): reject non-positive callback amounts
+hash: eb7e731
+
+## Bug 3: bet duplicado sem idempotência
+
+### Severidade
+P0 crítico
+Justificativa: retries legítimos do provider causavam débito duplicado ao player.
+
+### Causa raiz
+`handleBet()` não tinha guarda por `provider_transaction_id` + `type`, diferente do fluxo de `win`.
+
+### Arquivo(s) e linha(s)
+- `app/Http/Controllers/Api/ProviderCallbackController.php:L40-L53`
+- `tests/Feature/ProviderCallbackTest.php:L194-L210`
+
+### Ticket(s)
+#4488
+
+### Impacto
+Mesma aposta era debitada duas vezes quando callback era reenviado.
+
+### Como reproduzir
+Pré-condição: wallet com saldo > valor da aposta.
+1. Enviar o mesmo payload `bet` assinado duas vezes.
+2. Consultar saldo e transações.
+   Esperado: segunda chamada idempotente sem novo débito.
+   Obtido  : segundo débito aplicado.
+
+### Evidência antes do fix
+- `FAILED ... Failed asserting that 440.0 matches expected 470.0` em `test_bet_callback_is_idempotent_on_same_provider_transaction_id`.
+
+### Fix aplicado
+Adicionada guarda idempotente em `handleBet()` para retornar a transação existente quando `provider_transaction_id` + `type=bet` já existem.
+
+### Evidência depois do fix
+- QA manual: `HTTP1=200 HTTP2=200 | before=1047 mid=1036 after=1036`.
+- Ambas respostas retornaram o mesmo `transaction_id` (`14`).
+
+### Testes
+- `test_bet_callback_is_idempotent_on_same_provider_transaction_id` — FAILED antes / PASSED depois
+- Suíte completa: 8 passed
+
+### Trade-offs
+- Alternativa descartada: depender apenas de índice único no banco; descartada para manter resposta idempotente de aplicação sem erro para retries já existentes.
+
+### Commit
+fix(callback): make bet callback idempotent
 hash: [gerado]
