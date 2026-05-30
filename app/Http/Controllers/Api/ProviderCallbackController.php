@@ -11,6 +11,7 @@ use App\Models\Wallet;
 use App\Services\WalletService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
@@ -37,36 +38,54 @@ class ProviderCallbackController
         $player = Player::where('external_id', $data['player_external_id'])->firstOrFail();
         $wallet = $player->wallet ?? $this->createWallet($player, $data['currency'] ?? null);
 
-        $existing = Transaction::where('provider_transaction_id', $data['provider_transaction_id'])
-            ->where('type', Transaction::TYPE_BET)
-            ->first();
-
-        if ($existing !== null) {
-            return response()->json([
-                'status' => 'ok',
-                'transaction_id' => $existing->id,
-                'balance' => $wallet->balance,
-            ]);
-        }
-
         try {
-            $this->walletService->debit($wallet, (string) $data['amount']);
+            $operation = DB::transaction(function () use ($data, $wallet): array {
+                $lockedWallet = Wallet::whereKey($wallet->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $existing = Transaction::where('provider_transaction_id', $data['provider_transaction_id'])
+                    ->where('type', Transaction::TYPE_BET)
+                    ->first();
+
+                if ($existing !== null) {
+                    return [
+                        'existing' => $existing,
+                        'wallet' => $lockedWallet,
+                    ];
+                }
+
+                $this->walletService->debit($lockedWallet, (string) $data['amount']);
+
+                $transaction = Transaction::create([
+                    'wallet_id' => $lockedWallet->id,
+                    'provider_transaction_id' => $data['provider_transaction_id'],
+                    'type' => Transaction::TYPE_BET,
+                    'amount' => (string) $data['amount'],
+                    'status' => Transaction::STATUS_COMPLETED,
+                ]);
+
+                return [
+                    'transaction' => $transaction,
+                    'wallet' => $lockedWallet,
+                ];
+            }, 5);
         } catch (RuntimeException $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         }
 
-        $transaction = Transaction::create([
-            'wallet_id' => $wallet->id,
-            'provider_transaction_id' => $data['provider_transaction_id'],
-            'type' => Transaction::TYPE_BET,
-            'amount' => (float) $data['amount'],
-            'status' => Transaction::STATUS_COMPLETED,
-        ]);
+        if (isset($operation['existing'])) {
+            return response()->json([
+                'status' => 'ok',
+                'transaction_id' => $operation['existing']->id,
+                'balance' => $operation['wallet']->balance,
+            ]);
+        }
 
         return response()->json([
             'status' => 'ok',
-            'transaction_id' => $transaction->id,
-            'balance' => $wallet->balance,
+            'transaction_id' => $operation['transaction']->id,
+            'balance' => $operation['wallet']->balance,
         ]);
     }
 
@@ -75,40 +94,108 @@ class ProviderCallbackController
         $player = Player::where('external_id', $data['player_external_id'])->firstOrFail();
         $wallet = $player->wallet ?? $this->createWallet($player, $data['currency'] ?? null);
 
-        $existing = Transaction::where('provider_transaction_id', $data['provider_transaction_id'])
-            ->where('type', Transaction::TYPE_WIN)
-            ->first();
+        try {
+            $operation = DB::transaction(function () use ($data, $wallet): array {
+                $lockedWallet = Wallet::whereKey($wallet->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
 
-        if ($existing !== null) {
+                $existing = Transaction::where('provider_transaction_id', $data['provider_transaction_id'])
+                    ->where('type', Transaction::TYPE_WIN)
+                    ->first();
+
+                if ($existing !== null) {
+                    return [
+                        'existing' => $existing,
+                        'wallet' => $lockedWallet,
+                    ];
+                }
+
+                $this->walletService->credit($lockedWallet, (string) $data['amount']);
+
+                $transaction = Transaction::create([
+                    'wallet_id' => $lockedWallet->id,
+                    'provider_transaction_id' => $data['provider_transaction_id'],
+                    'type' => Transaction::TYPE_WIN,
+                    'amount' => (string) $data['amount'],
+                    'status' => Transaction::STATUS_COMPLETED,
+                ]);
+
+                return [
+                    'transaction' => $transaction,
+                    'wallet' => $lockedWallet,
+                ];
+            }, 5);
+        } catch (RuntimeException $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+
+        if (isset($operation['existing'])) {
             return response()->json([
                 'status' => 'ok',
-                'transaction_id' => $existing->id,
-                'balance' => $wallet->balance,
+                'transaction_id' => $operation['existing']->id,
+                'balance' => $operation['wallet']->balance,
             ]);
         }
 
-        $this->walletService->credit($wallet, (string) $data['amount']);
-
-        $transaction = Transaction::create([
-            'wallet_id' => $wallet->id,
-            'provider_transaction_id' => $data['provider_transaction_id'],
-            'type' => Transaction::TYPE_WIN,
-            'amount' => (float) $data['amount'],
-            'status' => Transaction::STATUS_COMPLETED,
-        ]);
-
         return response()->json([
             'status' => 'ok',
-            'transaction_id' => $transaction->id,
-            'balance' => $wallet->balance,
+            'transaction_id' => $operation['transaction']->id,
+            'balance' => $operation['wallet']->balance,
         ]);
     }
 
     private function handleRollback(array $data): JsonResponse
     {
-        $original = Transaction::where('provider_transaction_id', $data['original_transaction_id'])->first();
+        try {
+            $operation = DB::transaction(function () use ($data): array {
+                $original = Transaction::where('provider_transaction_id', $data['original_transaction_id'])
+                    ->lockForUpdate()
+                    ->first();
 
-        if ($original === null) {
+                if ($original === null) {
+                    return ['not_found' => true];
+                }
+
+                $lockedWallet = Wallet::whereKey($original->wallet_id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $existingRollback = Transaction::where('type', Transaction::TYPE_ROLLBACK)
+                    ->where('original_transaction_id', $original->id)
+                    ->first();
+
+                if ($existingRollback !== null) {
+                    return [
+                        'existing' => $existingRollback,
+                        'wallet' => $lockedWallet,
+                    ];
+                }
+
+                $this->walletService->reverse($lockedWallet, $original);
+
+                $original->status = Transaction::STATUS_REVERSED;
+                $original->save();
+
+                $rollback = Transaction::create([
+                    'wallet_id' => $lockedWallet->id,
+                    'provider_transaction_id' => $data['provider_transaction_id'],
+                    'type' => Transaction::TYPE_ROLLBACK,
+                    'amount' => (string) $data['amount'],
+                    'status' => Transaction::STATUS_COMPLETED,
+                    'original_transaction_id' => $original->id,
+                ]);
+
+                return [
+                    'rollback' => $rollback,
+                    'wallet' => $lockedWallet,
+                ];
+            }, 5);
+        } catch (RuntimeException $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+
+        if (isset($operation['not_found'])) {
             Log::warning('Rollback received for unknown transaction', [
                 'provider_transaction_id' => $data['original_transaction_id'],
             ]);
@@ -116,42 +203,18 @@ class ProviderCallbackController
             return response()->json(['error' => 'original transaction not found'], 404);
         }
 
-        $wallet = Wallet::findOrFail($original->wallet_id);
-
-        $existingRollback = Transaction::where('type', Transaction::TYPE_ROLLBACK)
-            ->where('original_transaction_id', $original->id)
-            ->first();
-
-        if ($existingRollback !== null) {
+        if (isset($operation['existing'])) {
             return response()->json([
                 'status' => 'ok',
-                'transaction_id' => $existingRollback->id,
-                'balance' => $wallet->balance,
+                'transaction_id' => $operation['existing']->id,
+                'balance' => $operation['wallet']->balance,
             ]);
         }
 
-        try {
-            $this->walletService->reverse($wallet, $original);
-        } catch (RuntimeException $e) {
-            return response()->json(['error' => $e->getMessage()], 422);
-        }
-
-        $original->status = Transaction::STATUS_REVERSED;
-        $original->save();
-
-        $rollback = Transaction::create([
-            'wallet_id' => $wallet->id,
-            'provider_transaction_id' => $data['provider_transaction_id'],
-            'type' => Transaction::TYPE_ROLLBACK,
-            'amount' => (float) $data['amount'],
-            'status' => Transaction::STATUS_COMPLETED,
-            'original_transaction_id' => $original->id,
-        ]);
-
         return response()->json([
             'status' => 'ok',
-            'transaction_id' => $rollback->id,
-            'balance' => $wallet->balance,
+            'transaction_id' => $operation['rollback']->id,
+            'balance' => $operation['wallet']->balance,
         ]);
     }
 

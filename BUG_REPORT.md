@@ -344,4 +344,53 @@ Pré-condição: callback endpoint ativo.
 
 ### Commit
 fix(validation): require original transaction id on rollback
+hash: 56d6203
+
+## Bug 8: risco de saldo inconsistente sob concorrência sem lock transacional
+
+### Severidade
+P2 médio
+Justificativa: não houve reprodução direta de saldo negativo no ambiente de teste, mas a ausência de lock pessimista transacional em mutações financeiras mantinha risco arquitetural sob carga concorrente.
+
+### Causa raiz
+Handlers financeiros (`bet`, `win`, `rollback`) executavam leitura/checagem idempotente e mutação de saldo sem `DB::transaction` + `lockForUpdate` no registro da wallet.
+
+### Arquivo(s) e linha(s)
+- `app/Http/Controllers/Api/ProviderCallbackController.php`
+- `tests/Feature/Unit/CallbackTransactionSafetyTest.php`
+
+### Ticket(s)
+#4471 (status inicial PROVÁVEL)
+
+### Impacto
+Risco de inconsistência de saldo em cenários simultâneos (race conditions), especialmente com retries do provider em janelas curtas.
+
+### Como reproduzir
+Pré-condição: código sem lock transacional.
+1. Executar `CallbackTransactionSafetyTest`.
+2. Verificar presença de `DB::transaction` e `lockForUpdate` no controller.
+   Esperado: presença explícita dos mecanismos.
+   Obtido  : ausência dos dois.
+
+### Evidência antes do fix
+- `FAILED ... To contain: DB::transaction` em `CallbackTransactionSafetyTest`.
+
+### Fix aplicado
+- `handleBet`, `handleWin` e `handleRollback` encapsulados em `DB::transaction(..., 5)`.
+- Lock pessimista aplicado com `Wallet::whereKey(...)->lockForUpdate()->firstOrFail()`.
+- Checagens de idempotência movidas para dentro da transação.
+
+### Evidência depois do fix
+- `CallbackTransactionSafetyTest` PASSED.
+- Bateria de QA de rotas: `wallet=200 tx=200 bet=200 win=200 rb=200 nosig=401 neg=422 replay=401 type=422 rb_no=422 bet_dup=200 cent=200`.
+
+### Testes
+- `CallbackTransactionSafetyTest` — FAILED antes / PASSED depois
+- Suíte completa: 15 passed
+
+### Trade-offs
+- Limitação documentada: concorrência real não é totalmente validada em SQLite de testes; comportamento de lock deve ser validado também em banco equivalente ao de produção.
+
+### Commit
+fix(concurrency): add transactional wallet locking to callbacks
 hash: [gerado]
