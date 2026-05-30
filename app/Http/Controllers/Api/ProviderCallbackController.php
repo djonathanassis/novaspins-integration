@@ -38,7 +38,7 @@ class ProviderCallbackController
         $wallet = $player->wallet ?? $this->createWallet($player, $data['currency'] ?? null);
 
         try {
-            $this->walletService->debit($wallet, (float) $data['amount']);
+            $this->walletService->debit($wallet, (string) $data['amount']);
         } catch (RuntimeException $e) {
             return response()->json(['error' => $e->getMessage()], 422);
         }
@@ -75,7 +75,7 @@ class ProviderCallbackController
             ]);
         }
 
-        $this->walletService->credit($wallet, (float) $data['amount']);
+        $this->walletService->credit($wallet, (string) $data['amount']);
 
         $transaction = Transaction::create([
             'wallet_id' => $wallet->id,

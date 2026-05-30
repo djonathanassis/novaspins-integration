@@ -151,6 +151,28 @@ class ProviderCallbackTest extends TestCase
         ]);
     }
 
+    public function test_bet_with_negative_amount_is_rejected_and_does_not_credit_wallet(): void
+    {
+        $player = $this->makePlayerWithBalance(500.00);
+
+        $payload = $this->payload([
+            'type' => 'bet',
+            'player_external_id' => $player->external_id,
+            'provider_transaction_id' => 'tx-bet-negative',
+            'amount' => -50.00,
+            'currency' => 'BRL',
+        ]);
+
+        $response = $this->postCallback($payload);
+
+        $response->assertStatus(422);
+
+        $this->assertEquals(500.00, $player->wallet->refresh()->balance);
+        $this->assertDatabaseMissing('transactions', [
+            'provider_transaction_id' => 'tx-bet-negative',
+        ]);
+    }
+
     public function test_win_callback_is_idempotent_on_same_provider_transaction_id(): void
     {
         $player = $this->makePlayerWithBalance(500.00);
