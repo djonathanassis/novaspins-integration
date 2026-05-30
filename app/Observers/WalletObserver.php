@@ -28,7 +28,7 @@ class WalletObserver
         }
 
         if ($wallet->balance !== null) {
-            $wallet->balance = (float) number_format((float) $wallet->balance, 2, '.', '');
+            $wallet->balance = bcadd((string) $wallet->balance, '0', 2);
         }
     }
 }

@@ -235,4 +235,60 @@ Substituída comparação `===` por `hash_equals($expected, $signature)` no `Hma
 
 ### Commit
 fix(security): use hash_equals in hmac validation
+hash: 0493465
+
+## Bug 6: precisão monetária com float/double
+
+### Severidade
+P1 alto
+Justificativa: uso de float/double em saldo e transações pode gerar divergência de centavos e inconsistência contábil.
+
+### Causa raiz
+Schema monetário em `float/double`, casts de model em `float` e cast explícito `(float)` após `bcadd/bcsub` no service.
+
+### Arquivo(s) e linha(s)
+- `database/migrations/2026_05_30_033736_change_wallets_and_transactions_to_decimal.php`
+- `app/Models/Wallet.php:L23`
+- `app/Models/Transaction.php:L32`
+- `app/Services/WalletService.php:L25,L36`
+- `app/Observers/WalletObserver.php:L31`
+- `tests/Feature/Unit/MonetaryPrecisionConfigurationTest.php:L12-L29`
+
+### Ticket(s)
+#4507
+
+### Impacto
+Perda/mascaramento de centavos em operações financeiras e risco de reconciliação divergente em relatórios.
+
+### Como reproduzir
+Pré-condição: configuração original com tipos flutuantes.
+1. Executar `MonetaryPrecisionConfigurationTest`.
+2. Validar casts e presença de `(float) bc*` no service.
+   Esperado: casts decimais e ausência de cast float após bcmath.
+   Obtido  : casts `float` e cast explícito `(float) bc*`.
+
+### Evidência antes do fix
+- `FAILED ... -'decimal:2' +'float'`.
+- `FAILED ... Not to contain: (float) bcsub`.
+
+### Fix aplicado
+- Criada **nova migration** para alterar `wallets.balance` e `transactions.amount` para `decimal(18,2)` com `->change()`.
+- Models `Wallet` e `Transaction` convertidos para cast `decimal:2`.
+- `WalletService` removeu cast para float após bcmath.
+- `WalletObserver` passou a normalizar com `bcadd(..., '0', 2)`.
+
+### Evidência depois do fix
+- Schema MySQL: `wallets.balance = decimal(18,2)` e `transactions.amount = decimal(18,2)`.
+- QA manual: `HTTP=200 | before=1036.00 | after=1036.10` para `win` de `0.10`.
+- Banco: `SELECT balance` retornou `1036.10`.
+
+### Testes
+- `MonetaryPrecisionConfigurationTest` — FAILED antes / PASSED depois
+- Suíte completa: 13 passed
+
+### Trade-offs
+- Alternativa descartada: manter schema antigo e corrigir só no PHP; descartada porque o risco de precisão permaneceria na persistência.
+
+### Commit
+fix(money): migrate monetary fields to decimal precision
 hash: [gerado]

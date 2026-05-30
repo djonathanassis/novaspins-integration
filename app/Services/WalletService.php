@@ -20,7 +20,7 @@ class WalletService
             throw new RuntimeException('Insufficient balance');
         }
 
-        $wallet->balance = (float) bcsub((string) $wallet->balance, $amount, 2);
+        $wallet->balance = bcsub((string) $wallet->balance, $amount, 2);
         $wallet->save();
 
         return $wallet;
@@ -31,7 +31,7 @@ class WalletService
         $this->ensureAmountIsPositive($amount);
 
         $wallet->refresh();
-        $wallet->balance = (float) bcadd((string) $wallet->balance, $amount, 2);
+        $wallet->balance = bcadd((string) $wallet->balance, $amount, 2);
         $wallet->save();
 
         return $wallet;

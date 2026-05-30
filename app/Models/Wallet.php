@@ -20,7 +20,7 @@ class Wallet extends Model
     ];
 
     protected $casts = [
-        'balance' => 'float',
+        'balance' => 'decimal:2',
     ];
 
     public function player(): BelongsTo
