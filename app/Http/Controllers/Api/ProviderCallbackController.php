@@ -74,17 +74,11 @@ class ProviderCallbackController
             return response()->json(['error' => $e->getMessage()], 422);
         }
 
-        if (isset($operation['existing'])) {
-            return response()->json([
-                'status' => 'ok',
-                'transaction_id' => $operation['existing']->id,
-                'balance' => $operation['wallet']->balance,
-            ]);
-        }
+        $transaction = $operation['existing'] ?? $operation['transaction'];
 
         return response()->json([
             'status' => 'ok',
-            'transaction_id' => $operation['transaction']->id,
+            'transaction_id' => $transaction->id,
             'balance' => $operation['wallet']->balance,
         ]);
     }
@@ -130,17 +124,11 @@ class ProviderCallbackController
             return response()->json(['error' => $e->getMessage()], 422);
         }
 
-        if (isset($operation['existing'])) {
-            return response()->json([
-                'status' => 'ok',
-                'transaction_id' => $operation['existing']->id,
-                'balance' => $operation['wallet']->balance,
-            ]);
-        }
+        $transaction = $operation['existing'] ?? $operation['transaction'];
 
         return response()->json([
             'status' => 'ok',
-            'transaction_id' => $operation['transaction']->id,
+            'transaction_id' => $transaction->id,
             'balance' => $operation['wallet']->balance,
         ]);
     }
@@ -203,17 +191,11 @@ class ProviderCallbackController
             return response()->json(['error' => 'original transaction not found'], 404);
         }
 
-        if (isset($operation['existing'])) {
-            return response()->json([
-                'status' => 'ok',
-                'transaction_id' => $operation['existing']->id,
-                'balance' => $operation['wallet']->balance,
-            ]);
-        }
+        $transaction = $operation['existing'] ?? $operation['rollback'];
 
         return response()->json([
             'status' => 'ok',
-            'transaction_id' => $operation['rollback']->id,
+            'transaction_id' => $transaction->id,
             'balance' => $operation['wallet']->balance,
         ]);
     }
