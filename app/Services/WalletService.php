@@ -17,11 +17,11 @@ class WalletService
 
         $wallet->refresh();
 
-        if (bccomp((string) $wallet->balance, $amount, 2) < 0) {
+        if (bccomp($wallet->balance, $amount, 2) < 0) {
             throw new RuntimeException('Insufficient balance');
         }
 
-        $wallet->balance = bcsub((string) $wallet->balance, $amount, 2);
+        $wallet->balance = bcsub($wallet->balance, $amount, 2);
         $wallet->save();
 
         return $wallet;
@@ -32,7 +32,7 @@ class WalletService
         $this->ensureAmountIsPositive($amount);
 
         $wallet->refresh();
-        $wallet->balance = bcadd((string) $wallet->balance, $amount, 2);
+        $wallet->balance = bcadd($wallet->balance, $amount, 2);
         $wallet->save();
 
         return $wallet;
@@ -41,14 +41,14 @@ class WalletService
     public function reverse(Wallet $wallet, Transaction $original): Wallet
     {
         if ($original->type === TransactionType::Bet) {
-            return $this->credit($wallet, (string) $original->amount);
+            return $this->credit($wallet, $original->amount);
         }
 
         if ($original->type === TransactionType::Win) {
-            return $this->debit($wallet, (string) $original->amount);
+            return $this->debit($wallet, $original->amount);
         }
 
-        throw new RuntimeException('Cannot reverse a transaction of type ' . $original->type);
+        throw new RuntimeException('Cannot reverse a transaction of type ' . $original->type->value);
     }
 
     private function ensureAmountIsPositive(string $amount): void

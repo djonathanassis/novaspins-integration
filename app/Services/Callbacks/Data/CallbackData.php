@@ -6,15 +6,15 @@ namespace App\Services\Callbacks\Data;
 
 use App\Enums\TransactionType;
 
-class CallbackData
+readonly class CallbackData
 {
     public function __construct(
-        public readonly TransactionType $type,
-        public readonly string $playerExternalId,
-        public readonly string $providerTransactionId,
-        public readonly string $amount,
-        public readonly string $currency,
-        public readonly ?string $originalTransactionId = null,
+        public TransactionType $type,
+        public string $playerExternalId,
+        public string $providerTransactionId,
+        public string $amount,
+        public string $currency,
+        public ?string $originalTransactionId = null,
     ) {
     }
 

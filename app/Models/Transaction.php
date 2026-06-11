@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * @property int $id
  * @property int $wallet_id
+ * @property string $amount
  * @property TransactionType $type
  * @property TransactionStatus $status
  * @property-read Wallet|null $wallet
