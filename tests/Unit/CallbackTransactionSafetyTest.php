@@ -8,12 +8,18 @@ use Tests\TestCase;
 
 class CallbackTransactionSafetyTest extends TestCase
 {
-    public function test_callback_controller_uses_transaction_and_lock_for_update(): void
+    public function test_callback_handlers_use_transaction_and_lock_for_update(): void
     {
-        $source = file_get_contents(base_path('app/Http/Controllers/Api/ProviderCallbackController.php'));
+        $handlerFiles = [
+            'app/Services/Callbacks/BaseHandler.php',
+            'app/Services/Callbacks/RollbackHandler.php',
+        ];
 
-        $this->assertNotFalse($source);
-        $this->assertStringContainsString('DB::transaction', $source);
-        $this->assertStringContainsString('lockForUpdate', $source);
+        foreach ($handlerFiles as $file) {
+            $source = file_get_contents(base_path($file));
+            $this->assertNotFalse($source, "Could not read {$file}");
+            $this->assertStringContainsString('DB::transaction', $source, "Missing DB::transaction in {$file}");
+            $this->assertStringContainsString('lockForUpdate', $source, "Missing lockForUpdate in {$file}");
+        }
     }
 }

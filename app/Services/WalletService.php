@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\TransactionType;
 use App\Models\Transaction;
 use App\Models\Wallet;
 use RuntimeException;
@@ -39,11 +40,11 @@ class WalletService
 
     public function reverse(Wallet $wallet, Transaction $original): Wallet
     {
-        if ($original->type === Transaction::TYPE_BET) {
+        if ($original->type === TransactionType::Bet) {
             return $this->credit($wallet, (string) $original->amount);
         }
 
-        if ($original->type === Transaction::TYPE_WIN) {
+        if ($original->type === TransactionType::Win) {
             return $this->debit($wallet, (string) $original->amount);
         }
 

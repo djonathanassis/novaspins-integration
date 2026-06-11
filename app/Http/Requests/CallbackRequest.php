@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Enums\TransactionType;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Validation\Rules\Enum;
 
 class CallbackRequest extends FormRequest
 {
@@ -18,7 +20,7 @@ class CallbackRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'type' => ['required', 'string', 'in:bet,win,rollback'],
+            'type' => ['required', 'string', new Enum(TransactionType::class)],
             'player_external_id' => ['required', 'string'],
             'provider_transaction_id' => ['required', 'string'],
             'amount' => ['required', 'numeric', 'decimal:0,2', 'gte:0.01'],

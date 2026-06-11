@@ -4,20 +4,23 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\TransactionStatus;
+use App\Enums\TransactionType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id
+ * @property int $wallet_id
+ * @property TransactionType $type
+ * @property TransactionStatus $status
+ * @property-read Wallet|null $wallet
+ * @property-read Transaction|null $original
+ */
 class Transaction extends Model
 {
     use HasFactory;
-
-    public const TYPE_BET = 'bet';
-    public const TYPE_WIN = 'win';
-    public const TYPE_ROLLBACK = 'rollback';
-
-    public const STATUS_COMPLETED = 'completed';
-    public const STATUS_REVERSED = 'reversed';
 
     protected $fillable = [
         'wallet_id',
@@ -30,6 +33,8 @@ class Transaction extends Model
 
     protected $casts = [
         'amount' => 'decimal:2',
+        'type' => TransactionType::class,
+        'status' => TransactionStatus::class,
     ];
 
     public function wallet(): BelongsTo

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\Player;
+use App\Enums\TransactionStatus;
+use App\Enums\TransactionType;
 use App\Models\Transaction;
 use App\Models\Wallet;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -70,9 +72,9 @@ class ProviderCallbackTest extends TestCase
         $bet = Transaction::create([
             'wallet_id' => $player->wallet->id,
             'provider_transaction_id' => 'tx-bet-rollback',
-            'type' => Transaction::TYPE_BET,
+            'type' => TransactionType::Bet,
             'amount' => 100.00,
-            'status' => Transaction::STATUS_COMPLETED,
+            'status' => TransactionStatus::Completed,
         ]);
         $player->wallet->decrement('balance', 100.00);
 
@@ -89,7 +91,7 @@ class ProviderCallbackTest extends TestCase
         $response->assertOk()->assertJsonPath('status', 'ok');
 
         $this->assertEquals(500.00, $player->wallet->refresh()->balance);
-        $this->assertEquals(Transaction::STATUS_REVERSED, $bet->refresh()->status);
+        $this->assertEquals(TransactionStatus::Reversed, $bet->refresh()->status);
     }
 
     public function test_rollback_without_original_transaction_id_returns_422(): void
@@ -126,7 +128,7 @@ class ProviderCallbackTest extends TestCase
             'provider_transaction_id' => 'tx-rollback-without-original',
         ]);
         $this->assertDatabaseMissing('transactions', [
-            'type' => Transaction::TYPE_ROLLBACK,
+            'type' => TransactionType::Rollback,
             'amount' => '12.00',
         ]);
     }
@@ -138,9 +140,9 @@ class ProviderCallbackTest extends TestCase
         $bet = Transaction::create([
             'wallet_id' => $player->wallet->id,
             'provider_transaction_id' => 'tx-bet-original-idempotent',
-            'type' => Transaction::TYPE_BET,
+            'type' => TransactionType::Bet,
             'amount' => 100.00,
-            'status' => Transaction::STATUS_COMPLETED,
+            'status' => TransactionStatus::Completed,
         ]);
         $player->wallet->decrement('balance', 100.00);
 
@@ -166,7 +168,7 @@ class ProviderCallbackTest extends TestCase
         $this->postCallback($payloadTwo)->assertOk();
 
         $this->assertEquals(500.00, $player->wallet->refresh()->balance);
-        $this->assertEquals(1, Transaction::where('type', Transaction::TYPE_ROLLBACK)->count());
+        $this->assertEquals(1, Transaction::where('type', TransactionType::Rollback)->count());
     }
 
     public function test_callback_with_invalid_signature_is_rejected(): void

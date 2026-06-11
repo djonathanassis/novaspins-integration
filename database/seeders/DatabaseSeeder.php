@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use App\Models\Player;
+use App\Enums\TransactionType;
+use App\Enums\TransactionStatus;
 use App\Models\Transaction;
 use App\Models\Wallet;
 use Illuminate\Database\Seeder;
@@ -24,11 +26,11 @@ class DatabaseSeeder extends Seeder
         );
 
         $history = [
-            ['type' => Transaction::TYPE_BET, 'amount' => 25.00],
-            ['type' => Transaction::TYPE_WIN, 'amount' => 60.00],
-            ['type' => Transaction::TYPE_BET, 'amount' => 10.50],
-            ['type' => Transaction::TYPE_BET, 'amount' => 5.25],
-            ['type' => Transaction::TYPE_WIN, 'amount' => 12.75],
+            ['type' => TransactionType::Bet, 'amount' => 25.00],
+            ['type' => TransactionType::Win, 'amount' => 60.00],
+            ['type' => TransactionType::Bet, 'amount' => 10.50],
+            ['type' => TransactionType::Bet, 'amount' => 5.25],
+            ['type' => TransactionType::Win, 'amount' => 12.75],
         ];
 
         foreach ($history as $i => $entry) {
@@ -38,7 +40,7 @@ class DatabaseSeeder extends Seeder
                     'wallet_id' => $wallet->id,
                     'type' => $entry['type'],
                     'amount' => $entry['amount'],
-                    'status' => Transaction::STATUS_COMPLETED,
+                    'status' => TransactionStatus::Completed,
                 ]
             );
         }
