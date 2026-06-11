@@ -9,6 +9,7 @@ use App\Enums\TransactionType;
 use App\Models\Player;
 use App\Models\Transaction;
 use App\Models\Wallet;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
@@ -25,6 +26,7 @@ class DatabaseIdempotencyTest extends TestCase
         config(['services.novaspins.hmac_secret' => self::SECRET]);
     }
 
+    // Verifica se os índices únicos de idempotência existem na tabela
     public function test_transactions_table_has_idempotency_unique_indexes(): void
     {
         $indexes = Schema::getIndexes('transactions');
@@ -43,6 +45,7 @@ class DatabaseIdempotencyTest extends TestCase
         );
     }
 
+    // O banco deve rejeitar provider_transaction_id + type duplicados
     public function test_duplicate_provider_transaction_id_and_type_is_rejected_by_database(): void
     {
         $player = Player::create(['external_id' => 'dup-test-1', 'name' => 'Dup Test']);
@@ -56,7 +59,7 @@ class DatabaseIdempotencyTest extends TestCase
             'status' => TransactionStatus::Completed,
         ]);
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
 
         Transaction::create([
             'wallet_id' => $wallet->id,
@@ -67,6 +70,7 @@ class DatabaseIdempotencyTest extends TestCase
         ]);
     }
 
+    // O banco deve rejeitar dois rollbacks para o mesmo original_transaction_id
     public function test_duplicate_rollback_for_same_original_is_rejected_by_database(): void
     {
         $player = Player::create(['external_id' => 'dup-test-2', 'name' => 'Dup Test 2']);
@@ -89,7 +93,7 @@ class DatabaseIdempotencyTest extends TestCase
             'original_transaction_id' => $original->id,
         ]);
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
 
         Transaction::create([
             'wallet_id' => $wallet->id,
@@ -101,6 +105,7 @@ class DatabaseIdempotencyTest extends TestCase
         ]);
     }
 
+    // Bets com provider_transaction_id diferentes devem ser aceitas (sem conflito)
     public function test_multiple_bets_with_different_provider_transaction_ids_are_allowed(): void
     {
         $player = Player::create(['external_id' => 'multi-bet-test', 'name' => 'Multi Bet']);
@@ -125,6 +130,7 @@ class DatabaseIdempotencyTest extends TestCase
         $this->assertEquals(2, Transaction::where('type', TransactionType::Bet)->count());
     }
 
+    // Callbacks duplicados via HTTP continuam funcionando com índices únicos
     public function test_idempotency_tests_still_pass_after_unique_indexes(): void
     {
         $player = $this->makePlayerWithBalance(500.00);
@@ -145,8 +151,9 @@ class DatabaseIdempotencyTest extends TestCase
 
     private function makePlayerWithBalance(float $balance): Player
     {
-        $player = Player::create(['external_id' => 'idem-' . uniqid(), 'name' => 'Idem Test']);
+        $player = Player::create(['external_id' => 'idem-'.uniqid(), 'name' => 'Idem Test']);
         Wallet::create(['player_id' => $player->id, 'balance' => $balance, 'currency' => 'BRL']);
+
         return $player->load('wallet');
     }
 
@@ -154,6 +161,7 @@ class DatabaseIdempotencyTest extends TestCase
     {
         $body = json_encode($overrides, JSON_THROW_ON_ERROR);
         $signature = hash_hmac('sha256', $body, self::SECRET);
+
         return ['body' => $body, 'signature' => $signature];
     }
 

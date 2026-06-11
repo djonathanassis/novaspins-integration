@@ -8,6 +8,7 @@ use Tests\TestCase;
 
 class CallbackTransactionSafetyTest extends TestCase
 {
+    // Verifica se os handlers usam DB::transaction + lockForUpdate
     public function test_callback_handlers_use_transaction_and_lock_for_update(): void
     {
         $handlerFiles = [

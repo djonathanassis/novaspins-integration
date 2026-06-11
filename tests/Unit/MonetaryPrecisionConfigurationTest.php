@@ -12,8 +12,8 @@ class MonetaryPrecisionConfigurationTest extends TestCase
 {
     public function test_wallet_and_transaction_model_casts_are_decimal_strings(): void
     {
-        $walletCasts = (new Wallet())->getCasts();
-        $transactionCasts = (new Transaction())->getCasts();
+        $walletCasts = (new Wallet)->getCasts();
+        $transactionCasts = (new Transaction)->getCasts();
 
         $this->assertSame('decimal:2', $walletCasts['balance']);
         $this->assertSame('decimal:2', $transactionCasts['amount']);
