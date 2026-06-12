@@ -10,6 +10,8 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+      redis:
+        condition: service_started
     networks:
       - novaspins
 
@@ -23,6 +25,14 @@ services:
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - app
+    networks:
+      - novaspins
+
+  redis:
+    image: redis:7-alpine
+    container_name: novaspins-redis
+    ports:
+      - "6379:6379"
     networks:
       - novaspins
 

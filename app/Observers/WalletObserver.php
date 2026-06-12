@@ -24,11 +24,11 @@ class WalletObserver
     public function saving(Wallet $wallet): void
     {
         if (! empty($wallet->currency)) {
-            $wallet->currency = strtoupper((string) $wallet->currency);
+            $wallet->currency = strtoupper($wallet->currency);
         }
 
         if ($wallet->balance !== null) {
-            $wallet->balance = bcadd((string) $wallet->balance, '0', 2);
+            $wallet->balance = bcadd($wallet->balance, '0', 2);
         }
     }
 }

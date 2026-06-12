@@ -10,6 +10,8 @@ RUN apk add --no-cache \
         g++ \
         make \
     && docker-php-ext-install pdo pdo_mysql bcmath zip \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
     && apk del autoconf g++ make
 
 # Tune PHP serialization precision to match the NovaSpins reconciliation
