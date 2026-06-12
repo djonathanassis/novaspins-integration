@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
-use App\Models\Player;
-use App\Enums\TransactionType;
 use App\Enums\TransactionStatus;
+use App\Enums\TransactionType;
+use App\Models\Player;
 use App\Models\Transaction;
 use App\Models\Wallet;
 use Illuminate\Database\Seeder;
@@ -35,7 +35,7 @@ class DatabaseSeeder extends Seeder
 
         foreach ($history as $i => $entry) {
             Transaction::firstOrCreate(
-                ['provider_transaction_id' => 'seed-tx-' . str_pad((string) ($i + 1), 4, '0', STR_PAD_LEFT)],
+                ['provider_transaction_id' => 'seed-tx-'.str_pad((string) ($i + 1), 4, '0', STR_PAD_LEFT)],
                 [
                     'wallet_id' => $wallet->id,
                     'type' => $entry['type'],

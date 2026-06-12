@@ -15,8 +15,7 @@ readonly class CallbackData
         public string $amount,
         public string $currency,
         public ?string $originalTransactionId = null,
-    ) {
-    }
+    ) {}
 
     public static function fromArray(array $data): self
     {

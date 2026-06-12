@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Callbacks;
 
-use App\Models\Player;
 use App\Enums\TransactionStatus;
 use App\Enums\TransactionType;
+use App\Models\Player;
 use App\Models\Transaction;
 use App\Models\Wallet;
 use App\Services\Callbacks\Contracts\CallbackHandler;
@@ -20,8 +20,7 @@ abstract class BaseHandler implements CallbackHandler
 {
     public function __construct(
         protected readonly WalletService $walletService,
-    ) {
-    }
+    ) {}
 
     abstract protected function type(): TransactionType;
 

@@ -48,7 +48,7 @@ class WalletService
             return $this->debit($wallet, $original->amount);
         }
 
-        throw new RuntimeException('Cannot reverse a transaction of type ' . $original->type->value);
+        throw new RuntimeException('Cannot reverse a transaction of type '.$original->type->value);
     }
 
     private function ensureAmountIsPositive(string $amount): void
