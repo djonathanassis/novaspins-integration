@@ -16,11 +16,13 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->appendToGroup('provider.callback', [
+            'throttle:novaspins-callback',
             VerifyProviderSignature::class,
             LogCallbacks::class,
         ]);
 
         $middleware->appendToGroup('provider.callback.replay', [
+            'throttle:novaspins-replay',
             VerifyProviderSignature::class,
             LogCallbacks::class,
         ]);
