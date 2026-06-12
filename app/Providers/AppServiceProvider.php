@@ -37,7 +37,7 @@ class AppServiceProvider extends ServiceProvider
         Wallet::observe(WalletObserver::class);
 
         RateLimiter::for('novaspins-callback', function (Request $request) {
-            return Limit::perMinute(60)->by($request->ip() ?? 'unknown');
+            return Limit::perMinute(120)->by($request->ip() ?? 'unknown');
         });
 
         RateLimiter::for('novaspins-replay', function (Request $request) {
