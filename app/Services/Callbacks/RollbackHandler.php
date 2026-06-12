@@ -20,8 +20,7 @@ readonly class RollbackHandler implements CallbackHandler
 {
     public function __construct(
         private WalletService $walletService,
-    ) {
-    }
+    ) {}
 
     public function handle(CallbackData $data): JsonResponse
     {
@@ -29,6 +28,7 @@ readonly class RollbackHandler implements CallbackHandler
             $result = DB::transaction(function () use ($data): array {
                 $original = Transaction::query()
                     ->where('provider_transaction_id', $data->originalTransactionId)
+                    ->whereIn('type', [TransactionType::Bet, TransactionType::Win])
                     ->lockForUpdate()
                     ->first();
 
